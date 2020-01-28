@@ -35,6 +35,44 @@ func TestCore(t *testing.T) {
 	}
 }
 
+func TestSetCounter(t *testing.T) {
+	var key [32]byte
+	var input [16]byte
+	var oneblock [64]byte
+	var twoblocks [128]byte
+
+	// 0 counter should allow us to encrypt two blocks
+	XORKeyStream(twoblocks[:], twoblocks[:], &input, &key)
+
+	input[0] = 0xff
+	input[1] = 0xff
+	input[2] = 0xff
+	input[3] = 0xff
+
+	// 2^32-1 counter should allow us to encrypt one block
+	XORKeyStream(oneblock[:], oneblock[:], &input, &key)
+
+	// 2^32-1 counter should not allow us to encrypt two blocks
+	expectPanic(t, func() {
+		XORKeyStream(twoblocks[:], twoblocks[:], &input, &key)
+	})
+}
+
+func expectPanic(t *testing.T, f func()) {
+	callf := func() (panicked bool) {
+		defer func() {
+			if r := recover(); r != nil {
+				panicked = true
+			}
+		}()
+		f()
+		return false
+	}
+	if !callf() {
+		t.Errorf("expected panic")
+	}
+}
+
 // Run the test cases with the input and output in different buffers.
 func TestNoOverlap(t *testing.T) {
 	for _, c := range testVectors {
